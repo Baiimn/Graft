@@ -12,15 +12,22 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { supportedExtensions, unsupportedExtensions } from "../src/graph/source-files.js";
+import { grammarAvailable } from "../src/graph/extract.js";
 
-test("supportedExtensions covers both tiers, sorted and de-duped", () => {
+test("supportedExtensions covers every tier, sorted and de-duped", () => {
   const exts = supportedExtensions();
   // depth tier
-  for (const e of [".ts", ".tsx", ".py", ".go", ".java", ".js", ".php", ".kt", ".kts", ".swift"]) assert.ok(exts.includes(e), `depth ${e}`);
+  for (const e of [".ts", ".tsx", ".py", ".go", ".java", ".js", ".php", ".swift"]) assert.ok(exts.includes(e), `depth ${e}`);
+  // Kotlin is the one optional grammar (it ships no prebuilt binary, so a machine
+  // without a C++ toolchain has no build). Its extensions are listed only when it
+  // loaded — `supportedExtensions` must never claim what cannot be parsed.
+  for (const e of [".kt", ".kts"]) assert.equal(exts.includes(e), grammarAvailable("kotlin"), `depth ${e}`);
   // breadth tier
   for (const e of [".rs", ".rb", ".c", ".cpp"]) assert.ok(exts.includes(e), `breadth ${e}`);
   // container tier
   assert.ok(exts.includes(".vue"), "container .vue");
+  // prose tier
+  for (const e of [".md", ".markdown", ".mdx"]) assert.ok(exts.includes(e), `prose ${e}`);
   // de-duped (.java is in BOTH tiers but must appear once) and sorted
   assert.equal(exts.filter((e) => e === ".java").length, 1, ".java de-duped across tiers");
   assert.deepEqual(exts, [...exts].sort(), "sorted");

@@ -17,7 +17,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { buildGraph } from "../src/graph/build.js";
 import { buildRepoMap } from "../src/graph/map.js";
-import { languageLabelOf, languageOf } from "../src/graph/extract.js";
+import { grammarAvailable, languageLabelOf, languageOf } from "../src/graph/extract.js";
 import { readGraph, wiringPath } from "../src/graph/write.js";
 
 /** Every extension graft claims to index, one per grammar/label pairing. */
@@ -62,8 +62,11 @@ test("labels name the language, not the grammar that parses it", () => {
   assert.equal(languageLabelOf("analysis/model.R"), "r");
   assert.equal(languageLabelOf("analysis/model.r"), "r");
   assert.equal(languageLabelOf("src/main/java/com/acme/App.java"), "java");
-assert.equal(languageLabelOf("src/main/kotlin/com/acme/App.kt"), "kotlin");
-  assert.equal(languageLabelOf("scripts/main.kts"), "kotlin");
+  // Kotlin ships no prebuilt binary, so on a machine without a C++ toolchain the
+  // grammar is absent and its extensions are correctly claimed by nothing.
+  const kt = grammarAvailable("kotlin") ? "kotlin" : null;
+  assert.equal(languageLabelOf("src/main/kotlin/com/acme/App.kt"), kt);
+  assert.equal(languageLabelOf("scripts/main.kts"), kt);
   assert.equal(languageLabelOf("Sources/App/main.swift"), "swift");
   assert.equal(languageLabelOf("app/Models/User.php"), "php");
 
@@ -88,11 +91,16 @@ test("the build banner and repo map report every language they indexed", async (
   writeFileSync(join(d, "scripts", "tool.mjs"), "export function mjsOnlySymbol() {\n  return 1;\n}\n");
   writeFileSync(join(d, "scripts", "web.jsx"), "export function JsxOnly() {\n  return null;\n}\n");
   writeFileSync(join(d, "src", "c.py"), "def py_only():\n    return 1\n");
-  writeFileSync(join(d, "src", "a.kt"), "fun ktOnly(): Int {\n  return 1\n}\n");
+  // Written only when the optional Kotlin grammar loaded — otherwise the file
+  // would be genuinely unindexed and the banner would be right to omit it.
+  const hasKotlin = grammarAvailable("kotlin");
+  if (hasKotlin) writeFileSync(join(d, "src", "a.kt"), "fun ktOnly(): Int {\n  return 1\n}\n");
   writeFileSync(join(d, "src", "a.swift"), "func swiftOnly() -> Int {\n  return 1\n}\n");
 
   const r = await buildGraph(d);
-  assert.deepEqual(r.languages, ["javascript", "jsx", "kotlin", "python", "swift", "tsx", "typescript"]);
+  const expected = ["javascript", "jsx", "python", "swift", "tsx", "typescript"];
+  if (hasKotlin) expected.push("kotlin");
+  assert.deepEqual(r.languages, expected.sort());
 
   // The reported symbol was queryable all along — that mismatch is what the issue was
   // about, so pin both halves together.

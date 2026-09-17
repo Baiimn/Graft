@@ -12,10 +12,10 @@ import Python from "tree-sitter-python";
 import Go from "tree-sitter-go";
 import R from "tree-sitter-r";
 import Java from "tree-sitter-java";
-import Kotlin from "tree-sitter-kotlin";
 import Swift from "tree-sitter-swift";
 import PHP from "tree-sitter-php";
 import { basename } from "node:path";
+import { createRequire } from "node:module";
 import { contentHash } from "../util/id.js";
 import { collectBindings, goReceiverVarOf, resolveRecvType, type FileBindings } from "./bindings.js";
 import type { Kind, NodeV1, Relation } from "./types.js";
@@ -61,12 +61,18 @@ const EXTENSIONS: ReadonlyArray<{ ext: string; grammar: Language; label: string 
 
 function entryFor(path: string): (typeof EXTENSIONS)[number] | undefined {
   const p = path.toLowerCase();
-  return EXTENSIONS.find((e) => p.endsWith(e.ext));
+  const hit = EXTENSIONS.find((e) => p.endsWith(e.ext));
+  // A grammar that failed to load (see `Kotlin` below) must stop claiming its
+  // extensions here, in the ONE place all three readings derive from — otherwise
+  // `languageOf` hands `build` a language `parser.setLanguage` will throw on.
+  return hit && grammarAvailable(hit.grammar) ? hit : undefined;
 }
 
-/** Every file extension a depth-tier (hand-written) extractor claims. */
+/** Every file extension a depth-tier (hand-written) extractor claims, in this
+ * install — an unavailable grammar's extensions are not listed, because nothing
+ * would parse them. */
 export function depthExtensions(): string[] {
-  return EXTENSIONS.map((e) => e.ext);
+  return EXTENSIONS.filter((e) => grammarAvailable(e.grammar)).map((e) => e.ext);
 }
 
 /** Map a file path to a supported language, or null if unsupported. */
@@ -311,6 +317,29 @@ const FUNCTION_VALUE_TYPES = new Set([
 const EMPTY_SET: ReadonlySet<string> = new Set();
 
 const parser = new Parser();
+
+/**
+ * Kotlin, loaded optionally — the one grammar here that may legitimately be absent.
+ *
+ * Every other native dependency ships prebuilt binaries (`prebuildify`) for
+ * win32-x64, so `node-gyp-build` finds one and never compiles. `tree-sitter-kotlin`
+ * (0.3.8, the latest) ships NO prebuilds for any platform, so npm falls back to
+ * node-gyp and the install fails outright on any Windows machine without the
+ * Visual Studio C++ toolchain — taking the other 22 languages down with it.
+ *
+ * Moving it to `optionalDependencies` lets the install succeed; this makes the
+ * runtime match, so a missing Kotlin build costs Kotlin and nothing else.
+ * `entryFor` then stops claiming `.kt`/`.kts`, which keeps `languageOf`,
+ * `depthExtensions` and the build loop consistent with what can actually parse.
+ */
+const Kotlin: unknown = (() => {
+  try {
+    return createRequire(import.meta.url)("tree-sitter-kotlin");
+  } catch {
+    return null;
+  }
+})();
+
 const GRAMMARS: Record<Language, unknown> = {
   typescript: TypeScript.typescript,
   tsx: TypeScript.tsx,
@@ -322,6 +351,12 @@ const GRAMMARS: Record<Language, unknown> = {
   swift: Swift,
   php: PHP.php,
 };
+
+/** Whether a grammar is actually loadable in this install. Only Kotlin can be
+ * false; the rest are static imports that would have thrown at module load. */
+export function grammarAvailable(lang: Language): boolean {
+  return GRAMMARS[lang] != null;
+}
 
 export interface WalkCtx {
   rel: string;

@@ -29,7 +29,11 @@ export type Kind =
   // breadth tier's kinds read truthfully in cards/skeleton.
   | "module"
   | "constant"
-  | "variable";
+  | "variable"
+  // The prose tier (prose.ts) emits one of these per markdown heading. Distinct
+  // from "module" because a section is a span of prose, not a namespace: a
+  // consumer ranking or rendering nodes has to be able to tell them apart.
+  | "section";
 
 /** How confident we are an edge is true, best-first. The hand-written AST
  * resolver assigns `extracted`/`inferred`; the opt-in LSP enrichment pass

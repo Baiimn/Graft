@@ -14,11 +14,15 @@ import { readFollowNestedRepos, readFollowSubmodules, readIncludeDirs } from "..
 import { languageOf, depthExtensions } from "./extract.js";
 import { genericLangOf, genericExtensions } from "./generic.js";
 import { containerLangOf, containerExtensions } from "./container.js";
+import { proseLangOf, proseExtensions } from "./prose.js";
 
-/** Every extension graft has a parser for (depth + breadth + container), sorted
- * and de-duped — the authoritative answer to "what does `-e` actually support". */
+/** Every extension graft has a parser for (depth + breadth + container + prose),
+ * sorted and de-duped — the authoritative answer to "what does `-e` actually
+ * support". */
 export function supportedExtensions(): string[] {
-  return [...new Set([...depthExtensions(), ...genericExtensions(), ...containerExtensions()])].sort();
+  return [
+    ...new Set([...depthExtensions(), ...genericExtensions(), ...containerExtensions(), ...proseExtensions()]),
+  ].sort();
 }
 
 /** Normalize a user-supplied extension: ensure a leading dot, lower-case. */
@@ -71,13 +75,17 @@ export function listSourceFiles(
   onlyDirs?: ReadonlySet<string>,
 ): string[] {
   // A file is a source file if a depth-tier grammar (languageOf), a breadth-tier
-  // grammar (genericLangOf) or a container (containerLangOf) claims its extension.
-  // All three must agree here or `build` and `check` would enumerate different sets.
+  // grammar (genericLangOf), a container (containerLangOf) or the prose tier
+  // (proseLangOf) claims its extension. All four must agree here or `build` and
+  // `check` would enumerate different sets.
   return filterByOnlyDirs(
     repoFiles.filter(
       (f) =>
         !f.startsWith(outDir) &&
-        (languageOf(f) !== null || genericLangOf(f) !== null || containerLangOf(f) !== null),
+        (languageOf(f) !== null ||
+          genericLangOf(f) !== null ||
+          containerLangOf(f) !== null ||
+          proseLangOf(f) !== null),
     ),
     root,
     onlyDirs,
