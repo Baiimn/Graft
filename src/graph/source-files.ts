@@ -6,8 +6,8 @@
  * cycle: build → fingerprint → build). `build.ts` re-exports
  * {@link listSourceFiles} so its existing importers are unaffected.
  */
-import { statSync } from "node:fs";
-import { resolve } from "node:path";
+import { existsSync, readdirSync, statSync } from "node:fs";
+import { join, resolve } from "node:path";
 import { walkDir } from "../ingest/fs.js";
 import { relPosix } from "../util/paths.js";
 import { readFollowNestedRepos, readFollowSubmodules, readIncludeDirs } from "../util/state.js";
@@ -15,6 +15,7 @@ import { languageOf, depthExtensions } from "./extract.js";
 import { genericLangOf, genericExtensions } from "./generic.js";
 import { containerLangOf, containerExtensions } from "./container.js";
 import { proseLangOf, proseExtensions } from "./prose.js";
+import { SHADOW_DIR } from "./write.js";
 
 /** Every extension graft has a parser for (depth + breadth + container + prose),
  * sorted and de-duped — the authoritative answer to "what does `-e` actually
@@ -65,6 +66,25 @@ export function filterByOnlyDirs(
   });
 }
 
+/** Every file under `<outDir>/shadow/` — the document shadows written by
+ * `scripts/graft-docs.py`. The repo walk cannot see them: it runs through
+ * `git ls-files --exclude-standard` and the context dir is gitignored, so they
+ * are enumerated here directly. */
+function listShadowFiles(outDir: string): string[] {
+  const root = join(outDir, SHADOW_DIR);
+  if (!existsSync(root)) return [];
+  const out: string[] = [];
+  const walk = (dir: string): void => {
+    for (const e of readdirSync(dir, { withFileTypes: true })) {
+      const abs = join(dir, e.name);
+      if (e.isDirectory()) walk(abs);
+      else if (e.isFile()) out.push(abs);
+    }
+  };
+  walk(root);
+  return out;
+}
+
 export function listSourceFiles(
   root: string,
   outDir: string,
@@ -79,9 +99,9 @@ export function listSourceFiles(
   // (proseLangOf) claims its extension. All four must agree here or `build` and
   // `check` would enumerate different sets.
   return filterByOnlyDirs(
-    repoFiles.filter(
+    [...repoFiles, ...listShadowFiles(outDir)].filter(
       (f) =>
-        !f.startsWith(outDir) &&
+        (!f.startsWith(outDir) || f.startsWith(join(outDir, SHADOW_DIR))) &&
         (languageOf(f) !== null ||
           genericLangOf(f) !== null ||
           containerLangOf(f) !== null ||

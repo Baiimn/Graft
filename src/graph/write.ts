@@ -14,6 +14,11 @@ import type { EdgeV1, GraphV1, NodeV1 } from "./types.js";
 
 /** Hidden subdir under the context dir that holds machine-only graph artifacts. */
 export const GRAPH_DIR = ".graph";
+/** Subdir under the context dir holding shadow markdown converted from documents
+ * (pdf/docx/pptx) by `scripts/graft-docs.py`. Unlike the rest of the context dir
+ * this IS indexed: it is source text, not build output, so `listSourceFiles`
+ * enumerates it and the card writers must never prune it. */
+export const SHADOW_DIR = "shadow";
 export const GRAPH_FILE = "wiring.json";
 
 /** Absolute path to the wiring graph for a context dir: `<dir>/.graph/wiring.json`. */

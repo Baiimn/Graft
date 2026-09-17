@@ -8,8 +8,11 @@ export function skillTemplate(): string {
 name: graft
 description: This repo is indexed by graft/. For ANY task here, whether
   understanding how something works, finding where code lives, tracing what
-  calls a symbol or what a change breaks, or scoping an edit, get your context
-  from graft before grepping or reading source files.
+  calls a symbol or what a change breaks, scoping an edit, or reading what a
+  document says, get your context from graft before grepping or reading files.
+  Also use it for documents, pdf, report, slides, deck, docx, notes, lecture,
+  paper, and for asks like "what does this file say", "summarise this report",
+  "find the part about X", Thai "อ่าน".
 ---
 
 # graft
@@ -147,6 +150,27 @@ than pricing them yourself.
 is already capped and states what it dropped; clipping it costs you hits you
 asked for, and it silently drops the savings line the statusline's running
 total is parsed from.
+
+## Documents: pdf, docx, pptx
+
+Documents are indexed too, through a **shadow**: a text-only markdown copy at
+\`graft/shadow/<the document's path>.md\`. Ask about a report, a deck or a lecture
+PDF exactly as you would about code — \`graft ask "hypothesis testing" --source\`
+— and a hit inside a shadow is a hit inside the document.
+
+Read the hit's heading to cite the real location:
+- \`## p.7\` in \`graft/shadow/uni/raw/stats.pdf.md\` = page 7 of \`uni/raw/stats.pdf\`
+- \`## Slide 3 - <title>\` = that slide of the \`.pptx\`
+- a \`##\` heading in a docx shadow = that heading in the \`.docx\`
+The shadow's first line names its source and length.
+
+A shadow carries **text only**. Open the real document only for what text cannot
+carry: figures, images, layout, fonts, page design, or marking a submission.
+Never quote a shadow as if it were the document's formatting.
+
+Shadows are written on demand by \`python <graft>/scripts/graft-docs.py <repo root>\`,
+then \`graft build\`. A document added since the last run has no shadow yet; if an
+obviously relevant document returns nothing, say so rather than guessing at it.
 
 ## When graft isn't enough
 - Span truncated ("+N more lines"): open the file at that exact range.

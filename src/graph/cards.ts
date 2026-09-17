@@ -20,7 +20,7 @@ import { relPosix } from "../util/paths.js";
 import matter from "gray-matter";
 import type { GraphV1, NodeV1 } from "./types.js";
 import { CACHE_DIR, readNodes } from "../context/node-file.js";
-import { GRAPH_DIR } from "./write.js";
+import { GRAPH_DIR, SHADOW_DIR } from "./write.js";
 
 const INDEX_FILE = "INDEX.md";
 /** Where a root-level file card goes when `graft/<stem>.md` is already a concept
@@ -124,7 +124,8 @@ function listExistingCards(outDir: string): string[] {
   const walk = (dir: string): void => {
     for (const e of readdirSync(dir, { withFileTypes: true })) {
       if (e.isDirectory()) {
-        if (dir === outDir && (e.name === CACHE_DIR || e.name === GRAPH_DIR)) continue;
+          if (dir === outDir && (e.name === CACHE_DIR || e.name === GRAPH_DIR || e.name === SHADOW_DIR))
+          continue;
         walk(join(dir, e.name));
       } else if (e.isFile() && e.name.endsWith(".md")) {
         out.push(join(dir, e.name));
@@ -134,7 +135,7 @@ function listExistingCards(outDir: string): string[] {
   for (const e of readdirSync(outDir, { withFileTypes: true })) {
     // Concept nodes and INDEX.md are top-level files — skip. Cards live in
     // subdirs (`src/…`, and `_root/` when a root card would collide with a concept).
-    if (e.isDirectory() && e.name !== CACHE_DIR && e.name !== GRAPH_DIR) {
+    if (e.isDirectory() && e.name !== CACHE_DIR && e.name !== GRAPH_DIR && e.name !== SHADOW_DIR) {
       walk(join(outDir, e.name));
     }
   }
@@ -147,7 +148,7 @@ function pruneEmptyDirs(outDir: string): void {
     // returns true if dir is empty after visiting children
     let empty = true;
     for (const e of readdirSync(dir, { withFileTypes: true })) {
-      if (dir === outDir && (e.name === CACHE_DIR || e.name === GRAPH_DIR)) {
+      if (dir === outDir && (e.name === CACHE_DIR || e.name === GRAPH_DIR || e.name === SHADOW_DIR)) {
         empty = false;
         continue;
       }
