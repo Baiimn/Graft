@@ -29,7 +29,9 @@ export function main(): void {
   const agent = input?.agent?.name;
   if (agent) { process.stdout.write(renderSubagent(agent, session)); return; }
   const stats = resolveStats(dir);
-  const raw = input?.context_window?.used_percentage;
-  const ctxPct = typeof raw === 'number' ? Math.round(raw) : null;
-  process.stdout.write(renderStatusline(stats, session, { ctxPct }).join('\n'));
+  const pct = (v: unknown): number | null => (typeof v === 'number' ? Math.round(v) : null);
+  const ctxPct = pct(input?.context_window?.used_percentage);
+  const fiveHourPct = pct(input?.rate_limits?.five_hour?.used_percentage);
+  const weekPct = pct(input?.rate_limits?.seven_day?.used_percentage);
+  process.stdout.write(renderStatusline(stats, session, { ctxPct, fiveHourPct, weekPct }).join('\n'));
 }
